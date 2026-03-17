@@ -17,11 +17,11 @@
         (da)->length += 1;                                                           \
     } while (0)
 
-#define DA_pop(da, ptr)                                             \
-    do {                                                            \
-        assert((da)->length != 0 && "ERROR: pop from empty array"); \
-        *(ptr) = (da)->items[(da)->length-1];                       \
-        (da)->length -= 1;                                          \
+#define DA_pop(da, ptr)                                                              \
+    do {                                                                             \
+        assert((da)->length != 0 && "ERROR: pop from empty array");                  \
+        *(ptr) = (da)->items[(da)->length-1];                                        \
+        (da)->length -= 1;                                                           \
     } while (0) 
 
 #define DA_append_str(da, str) \
@@ -39,17 +39,17 @@
         (da)->length += 1;                                                           \
     } while (0)
 
-#define DA_pop_str(da, ptr)                                         \
-    do {                                                            \
-        assert((da)->length != 0 && "ERROR: pop from empty array"); \
-        (ptr) = (da)->items[(da)->length-1];                        \
-        (da)->length -= 1;                                          \
+#define DA_pop_str(da, ptr)                                                          \
+    do {                                                                             \
+        assert((da)->length != 0 && "ERROR: pop from empty array");                  \
+        (ptr) = (da)->items[(da)->length-1];                                         \
+        (da)->length -= 1;                                                           \
     } while (0) 
 
 #define DA_clear(da) (da)->length = 0
 
 typedef struct {
-    char* items;
+    char*  items;
     size_t length;
     size_t capacity;
 } Str;
