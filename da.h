@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -63,4 +64,14 @@ void STR_append(Str* builder, char* str) {
     }
     strcpy(&builder->items[builder->length], str);
     builder->length += str_len;
+}
+
+void STR_extend(Str* builder, char* str, ...) {
+    va_list va;
+    va_start(va, str);
+    do {
+        STR_append(builder, str);
+        str = va_arg(va, char*);
+    } while (str != NULL);
+    va_end(va);
 }
