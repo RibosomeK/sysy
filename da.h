@@ -55,6 +55,9 @@
         (da)->length -= 1;                                                           \
     } while (0) 
 
+#define DA_foreach(da, item)                                                         \
+    for (auto (item) = (da)->items; (item) < (da)->items + (da)->length; (item)++)
+
 #define DA_clear(da) (da)->length = 0
 
 typedef struct {
