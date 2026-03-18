@@ -1,3 +1,5 @@
+#ifndef DA_H_
+#define DA_H_
 #include <assert.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -54,6 +56,9 @@ typedef struct {
     size_t capacity;
 } Str;
 
+#endif // DA_H_
+
+#ifdef DA_IMPLEMENTATION
 void STR_append(Str* builder, char* str) {
     size_t str_len = strlen(str);
     if (builder->capacity <= builder->length + str_len) {
@@ -75,3 +80,5 @@ void STR_extend(Str* builder, char* str, ...) {
     } while (str != NULL);
     va_end(va);
 }
+
+#endif // DA_IMPLEMENTATION
