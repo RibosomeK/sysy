@@ -7,6 +7,13 @@
 
 #define INIT_CAPACITY 16
 
+#define DA_def(type, name)                                                           \
+    typedef struct {                                                                 \
+        type items;                                                                  \
+        size_t length;                                                               \
+        size_t capacity;                                                             \
+    } name
+
 #define DA_append(da, item)                                                          \
     do {                                                                             \
         if ((da)->capacity <= (da)->length) {                                        \
