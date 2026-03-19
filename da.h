@@ -22,7 +22,7 @@
             (da)->items = realloc((da)->items, sizeof(*(da)->items)*(da)->capacity); \
             assert((da)->items != NULL && "ERROR: append failed");                   \
         }                                                                            \
-        (da)->items[(da)->length] = item;                                            \
+        (da)->items[(da)->length] = (item);                                            \
         (da)->length += 1;                                                           \
     } while (0)
 
@@ -43,7 +43,7 @@
         }                                                                            \
         char* idx = malloc(sizeof(char)*(strlen(str)+1));                            \
         assert(idx != NULL && "ERROR: append failed");                               \
-        strcpy(idx, str);                                                            \
+        strcpy(idx, (str));                                                            \
         (da)->items[(da)->length] = idx;                                             \
         (da)->length += 1;                                                           \
     } while (0)
