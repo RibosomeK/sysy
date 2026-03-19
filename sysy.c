@@ -11,7 +11,15 @@ int main() {
     LEX_parse(&lexer, &tokens, &buf);
     DA_foreach(&tokens, token) {
         size_t idx = token - tokens.items;
-        printf("%zu:%s\n", idx, *token);
+        switch (token->type) {
+        case IDENT:
+        case PUNC:
+            printf("%zu:%s\n", idx, token->as.string);
+            break;
+        case INT:
+            printf("%zu:%d\n", idx, token->as.integer);
+            break;
+        }
     }
     return 0;
 }
