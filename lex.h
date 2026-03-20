@@ -110,7 +110,7 @@ void LEX_parse(Lexer* lexer, Tokens* tokens, Str* buf) {
         char curr = lexer->src[lexer->pos];
         if (is_identifier_inital(curr)) {
             parse_ident(lexer, buf);
-            Tok_append(tokens, IDENT, CHAR_copy(buf->items));
+            Tok_append(tokens, IDENT, strdup(buf->items));
             DA_clear(buf);
             continue;
         }
@@ -120,14 +120,14 @@ void LEX_parse(Lexer* lexer, Tokens* tokens, Str* buf) {
         }
         if (is_digit(curr)) {
             parse_num(lexer, buf);
-            Tok_append(tokens, INT, CHAR_copy(buf->items));
+            Tok_append(tokens, INT, strdup(buf->items));
             DA_clear(buf);
             continue;
         }
         // as punctuation
         DA_append(buf, curr);
         DA_append(buf, '\0');
-        Tok_append(tokens, PUNC, CHAR_copy(buf->items));
+        Tok_append(tokens, PUNC, strdup(buf->items));
         DA_clear(buf);
         lexer->pos += 1;
     }

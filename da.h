@@ -60,13 +60,6 @@
 
 #define DA_clear(da) (da)->length = 0
 
-char* CHAR_copy(char* src) {
-    char* dest = malloc(sizeof(char)*(strlen(src)+1));
-    assert(dest != NULL && "ERROR: append failed");
-    strcpy(dest, src);
-    return dest;
-}
-
 typedef struct {
     char*  items;
     size_t length;
