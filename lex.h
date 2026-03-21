@@ -4,9 +4,10 @@
 #include "da.h"
 
 typedef enum {
-    IDENT,
-    INT,
-    PUNC,
+    TOK_IDENT,
+    TOK_INT,
+    TOK_PUNC,
+    TOK_EOF,
 } TokType;
 
 typedef struct {
@@ -95,11 +96,12 @@ void parse_num(Lexer* lexer, Str* buf) {
 
 void Tok_append(Tokens* tokens, TokType type, char* val) {
     switch (type) {
-    case IDENT: 
-    case PUNC:
+    case TOK_IDENT: 
+    case TOK_PUNC:
+    case TOK_EOF:
         DA_append(tokens, ((Token){ .type = type, .as.string = val }));
         break;
-    case INT: 
+    case TOK_INT: 
         DA_append(tokens, ((Token){ .type = type, .as.integer = atoi(val) }));
         break;
     }
@@ -110,7 +112,7 @@ void LEX_parse(Lexer* lexer, Tokens* tokens, Str* buf) {
         char curr = lexer->src[lexer->pos];
         if (is_identifier_inital(curr)) {
             parse_ident(lexer, buf);
-            Tok_append(tokens, IDENT, strdup(buf->items));
+            Tok_append(tokens, TOK_IDENT, strdup(buf->items));
             DA_clear(buf);
             continue;
         }
@@ -120,17 +122,18 @@ void LEX_parse(Lexer* lexer, Tokens* tokens, Str* buf) {
         }
         if (is_digit(curr)) {
             parse_num(lexer, buf);
-            Tok_append(tokens, INT, strdup(buf->items));
+            Tok_append(tokens, TOK_INT, strdup(buf->items));
             DA_clear(buf);
             continue;
         }
         // as punctuation
         DA_append(buf, curr);
         DA_append(buf, '\0');
-        Tok_append(tokens, PUNC, strdup(buf->items));
+        Tok_append(tokens, TOK_PUNC, strdup(buf->items));
         DA_clear(buf);
         lexer->pos += 1;
     }
+    Tok_append(tokens, TOK_EOF, "eof");
 }
 
 #endif // LEXER_H_
