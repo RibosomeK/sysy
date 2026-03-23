@@ -88,4 +88,13 @@ void STR_extend(Str* builder, char* str, ...) {
     va_end(va);
 }
 
+typedef struct {
+    char*  items;
+    size_t length;
+} StrView;
+
+StrView SV_from(char* literal) {
+    return (StrView) { .items = literal, .length = strlen(literal) };
+}
+
 #endif // DA_H_

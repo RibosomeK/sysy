@@ -1,6 +1,5 @@
 #ifndef LEX_H_
 #define LEX_H_
-#include <string.h>
 #include "da.h"
 
 typedef enum {
@@ -13,8 +12,8 @@ typedef enum {
 typedef struct {
     TokType type;
     union {
-        int   integer;
-        char* string;
+        int     integer;
+        StrView str_view;
     } as;
 } Token;
 
@@ -23,6 +22,24 @@ typedef struct {
     size_t length;
     size_t capacity;
 } Tokens;
+
+void TOKEN_display(Tokens* tokens) {
+    DA_foreach(tokens, token) {
+        size_t idx = token - tokens->items;
+        switch (token->type) {
+        case TOK_IDENT:
+        case TOK_PUNC:
+        case TOK_EOF:
+            printf("%zu:", idx);
+            fwrite(token->as.str_view.items, 1, token->as.str_view.length, stdout);
+            printf("\n");
+            break;
+        case TOK_INT:
+            printf("%zu:%d\n", idx, token->as.integer);
+            break;
+        }
+    }
+}
 
 typedef struct {
     char*  src;
@@ -64,56 +81,61 @@ bool is_digit(char c) {
     return false;
 }
 
-void parse_ident(Lexer* lexer, Str* buf) {
-    DA_append(buf, lexer->src[lexer->pos]);
+StrView parse_ident(Lexer* lexer) {
+    size_t length = 1;
+    StrView sv = {.items=&lexer->src[lexer->pos]};
     lexer->pos += 1;
     while (lexer->pos < lexer->len) {
         char curr = lexer->src[lexer->pos];
         if (is_identifier_follow(curr)) {
-            DA_append(buf, curr);
+            length += 1;
             lexer->pos += 1;
         } else {
             break;
         }
     }
-    DA_append(buf, '\0');
+    sv.length = length;
+    return sv;
 }
 
-void parse_num(Lexer* lexer, Str* buf) {
-    DA_append(buf, lexer->src[lexer->pos]);
+typedef enum {
+    NUM_INT,
+    NUM_FLOAT,
+} NUM_TYPE;
+
+typedef struct {
+    NUM_TYPE type;
+    union {
+        int integer;
+        float floating;
+    } as;
+} Number;
+
+Number parse_num(Lexer* lexer) {
+    Str buf = {0};
+    DA_append(&buf, lexer->src[lexer->pos]);
     lexer->pos += 1;
     while (lexer->pos < lexer->len) {
         char curr = lexer->src[lexer->pos];
         if (is_digit(curr)) {
-            DA_append(buf, curr);
+            DA_append(&buf, curr);
             lexer->pos += 1;
         } else {
             break;
         }
     }
-    DA_append(buf, '\0');
-}
-
-void Tok_append(Tokens* tokens, TokType type, char* val) {
-    switch (type) {
-    case TOK_IDENT: 
-    case TOK_PUNC:
-    case TOK_EOF:
-        DA_append(tokens, ((Token){ .type = type, .as.string = val }));
-        break;
-    case TOK_INT: 
-        DA_append(tokens, ((Token){ .type = type, .as.integer = atoi(val) }));
-        break;
-    }
+    DA_append(&buf, '\0');
+    Number num = {.type=NUM_INT, .as.integer=atoi(buf.items)};
+    free(buf.items);
+    return num;
 }
  
-void LEX_parse(Lexer* lexer, Tokens* tokens, Str* buf) {
+void LEX_parse(Lexer* lexer, Tokens* tokens) {
     while (lexer->pos < lexer->len) {
         char curr = lexer->src[lexer->pos];
         if (is_identifier_inital(curr)) {
-            parse_ident(lexer, buf);
-            Tok_append(tokens, TOK_IDENT, strdup(buf->items));
-            DA_clear(buf);
+            StrView ident = parse_ident(lexer);
+            DA_append(tokens, ((Token){.type=TOK_IDENT, .as.str_view=ident}));
             continue;
         }
         if (is_whitespace(curr)) {
@@ -121,19 +143,31 @@ void LEX_parse(Lexer* lexer, Tokens* tokens, Str* buf) {
             continue;
         }
         if (is_digit(curr)) {
-            parse_num(lexer, buf);
-            Tok_append(tokens, TOK_INT, strdup(buf->items));
-            DA_clear(buf);
+            Number num = parse_num(lexer);
+            switch (num.type) {
+            case NUM_INT:
+                DA_append(tokens, ((Token){.type=TOK_INT, .as.integer=num.as.integer}));
+                break;
+            case NUM_FLOAT:
+                assert(false && "TODO: Implement floating parsing");
+                break;
+            }
             continue;
         }
         // as punctuation
-        DA_append(buf, curr);
-        DA_append(buf, '\0');
-        Tok_append(tokens, TOK_PUNC, strdup(buf->items));
-        DA_clear(buf);
+        DA_append(
+            tokens, 
+            ((Token){
+                .type=TOK_PUNC, 
+                .as.str_view=(StrView){
+                    .items=&lexer->src[lexer->pos], 
+                    .length=1
+                }
+            })
+        );
         lexer->pos += 1;
     }
-    Tok_append(tokens, TOK_EOF, "eof");
+    DA_append(tokens, ((Token){.type=TOK_EOF, .as.str_view=SV_from("\0")}));
 }
 
 #endif // LEXER_H_
