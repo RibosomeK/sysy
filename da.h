@@ -93,8 +93,35 @@ typedef struct {
     size_t length;
 } StrView;
 
-StrView SV_from(char* literal) {
-    return (StrView) { .items = literal, .length = strlen(literal) };
+StrView SV_from(char* cstr) {
+    return (StrView){.items=cstr, .length=strlen(cstr)};
+}
+
+#define SV_eq(sv, str_like)                                                          \
+    _Generic((str_like),                                                             \
+        char*:    SV_cstr_eq,                                                        \
+        Str*:     SV_str_eq,                                                         \
+        StrView*: SV_sv_eq                                                           \
+    )(sv, str_like) 
+
+
+bool SV_cstr_eq(StrView* sv, char* cstr) {
+    if (sv->length != strlen(cstr)) return false;
+    return memcmp(sv->items, cstr, sv->length) == 0;
+}
+
+bool SV_str_eq(StrView* sv, Str* str) {
+    if (sv->length != str->length) return false;
+    return memcmp(sv->items, str->items, sv->length) == 0;
+}
+
+bool SV_sv_eq(StrView* sv1, StrView* sv2) {
+    if (sv1->length != sv2->length) 
+        return false;
+    if (sv1->items == sv2->items) 
+        return true;
+    else
+        return memcpy(sv1->items, sv2->items, sv1->length);
 }
 
 #endif // DA_H_

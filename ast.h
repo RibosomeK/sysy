@@ -102,9 +102,13 @@ ParseResult parse_ret(Parser* parser, Nodes* nodes) {
         return (ParseResult){ .err = MISSING_EXPR };
     int val = curr.as.integer;
     curr = PARSER_next(parser);
-    if (curr.type != TOK_PUNC && strcmp(curr.as.string, ";") != 0)
+    if (
+        curr.type == TOK_PUNC && 
+        SV_eq(&curr.as.str_view, ";")
+    )
+        PARSER_consume(parser);
+    else
         return (ParseResult){ .err = MISSING_SEMI };
-    PARSER_consume(parser);
     DA_append(
         nodes, 
         ((Node){ .kind = RET, .as.ret = { .val = val } })
@@ -117,7 +121,7 @@ void AST_parse(Parser* parser, Nodes* nodes) {
     while (parser->pos < parser->tokens->length) {
         Token curr = PARSER_curr(parser);
         if (curr.type == TOK_IDENT) {
-            if (strcmp(curr.as.string, "return") == 0) {
+            if (SV_eq(&curr.as.str_view, "return")) {
                 result = parse_ret(parser, nodes);
                 if (!result.is_ok) goto error;
             } else {
@@ -132,10 +136,10 @@ void AST_parse(Parser* parser, Nodes* nodes) {
 error:
     switch (result.err) {
         case MISSING_SEMI: 
-            fprintf(stderr, "Missing semicolon\n"); 
+            fprintf(stderr, "ERROR: Missing semicolon\n"); 
             break;
         case MISSING_EXPR: 
-            fprintf(stderr, "Missing expresion\n"); 
+            fprintf(stderr, "ERROR: Missing expresion\n"); 
             break;
     }
 }
