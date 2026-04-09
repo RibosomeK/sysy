@@ -6,6 +6,7 @@
 #include <string.h>
 
 #define INIT_CAPACITY 16
+#define DA [[maybe_unused]] static
 
 #define DA_def(type, name)                                                           \
     typedef struct {                                                                 \
@@ -24,14 +25,14 @@
         }                                                                            \
         (da)->items[(da)->length] = (item);                                            \
         (da)->length += 1;                                                           \
-    } while (0)
+    } while (false)
 
 #define DA_pop(da, ptr)                                                              \
     do {                                                                             \
         assert((da)->length != 0 && "ERROR: pop from empty array");                  \
         *(ptr) = (da)->items[(da)->length-1];                                        \
         (da)->length -= 1;                                                           \
-    } while (0) 
+    } while (false)
 
 #define DA_append_str(da, str) \
     do {                                                                             \
@@ -46,14 +47,14 @@
         strcpy(idx, (str));                                                            \
         (da)->items[(da)->length] = idx;                                             \
         (da)->length += 1;                                                           \
-    } while (0)
+    } while (false)
 
 #define DA_pop_str(da, ptr)                                                          \
     do {                                                                             \
         assert((da)->length != 0 && "ERROR: pop from empty array");                  \
         (ptr) = (da)->items[(da)->length-1];                                         \
         (da)->length -= 1;                                                           \
-    } while (0) 
+    } while (false)
 
 #define DA_foreach(da, item)                                                         \
     for (auto (item) = (da)->items; (item) < (da)->items + (da)->length; (item)++)
@@ -73,7 +74,12 @@ typedef struct {
     size_t capacity;
 } Str;
 
-void STR_append(Str* builder, char* str) {
+DA void STR_clear(Str* str) {
+    str->items[0] = '\0';
+    str->length = 0;
+}
+
+DA void STR_append(Str* builder, char* str) {
     size_t str_len = strlen(str);
     if (builder->capacity <= builder->length + str_len) {
         if (builder->capacity == 0) builder->capacity = INIT_CAPACITY + str_len + 1;
@@ -85,7 +91,7 @@ void STR_append(Str* builder, char* str) {
     builder->length += str_len;
 }
 
-void STR_extend(Str* builder, char* str, ...) {
+DA void STR_extend(Str* builder, char* str, ...) {
     va_list va;
     va_start(va, str);
     do {
@@ -95,12 +101,30 @@ void STR_extend(Str* builder, char* str, ...) {
     va_end(va);
 }
 
+ DA void STR_append_by_size(Str* builder, char* str, size_t size) {
+    if (builder->capacity <= builder->length + size + 1)
+        DA_resize(builder, builder->length + size + 1);
+    memcpy(&builder->items[builder->length], str, size);
+    builder->length += size;
+    builder->items[builder->length] = '\0';
+}
+
+// len(str(2**64)) + 1
+#define INT_LEN 21
+
+DA void STR_append_int(Str* builder, int num) {
+    if (builder->capacity <= builder->length + INT_LEN)
+        DA_resize(builder, builder->length + INT_LEN);
+    int length = sprintf(&builder->items[builder->length], "%d", num);
+    builder->length += length;
+}
+
 typedef struct {
     char*  items;
     size_t length;
 } StrView;
 
-StrView SV_from(char* cstr) {
+DA StrView SV_from(char* cstr) {
     return (StrView){.items=cstr, .length=strlen(cstr)};
 }
 
@@ -111,24 +135,72 @@ StrView SV_from(char* cstr) {
         StrView*: SV_sv_eq                                                           \
     )(sv, str_like) 
 
+#define SV_not_eq(sv, str_like)                                                      \
+    !_Generic((str_like),                                                            \
+        char*:    SV_cstr_eq,                                                        \
+        Str*:     SV_str_eq,                                                         \
+        StrView*: SV_sv_eq                                                           \
+    )(sv, str_like)
 
-bool SV_cstr_eq(StrView* sv, char* cstr) {
+DA bool SV_cstr_eq(StrView* sv, char* cstr) {
     if (sv->length != strlen(cstr)) return false;
     return memcmp(sv->items, cstr, sv->length) == 0;
 }
 
-bool SV_str_eq(StrView* sv, Str* str) {
+DA bool SV_str_eq(StrView* sv, Str* str) {
     if (sv->length != str->length) return false;
     return memcmp(sv->items, str->items, sv->length) == 0;
 }
 
-bool SV_sv_eq(StrView* sv1, StrView* sv2) {
+DA bool SV_sv_eq(StrView* sv1, StrView* sv2) {
     if (sv1->length != sv2->length) 
         return false;
     if (sv1->items == sv2->items) 
         return true;
-    else
-        return memcpy(sv1->items, sv2->items, sv1->length);
+    return memcmp(sv1->items, sv2->items, sv1->length);
+}
+
+#define OPTION_DEF(type)                                                             \
+    typedef struct {                                                                 \
+        bool is_some;                                                                \
+        union {                                                                      \
+            type  some;                                                              \
+            void* none;                                                              \
+        } as;                                                                        \
+        void* tag;                                                                   \
+    } Option_##type
+
+#define SOME(type, val) (Option_##type) { .is_some = true, .as.some = (val) }
+#define NONE(type) (Option_##type) { .as.none = nullptr }
+#define OUnwarp(opt) opt->is_some ? opt->as.some : assert(false && "ERROR: none unwarp")
+
+#define RESULT_DEF(type)                                                             \
+    typedef struct {                                                                 \
+        bool is_ok;                                                                  \
+        union {                                                                      \
+            type val;                                                                \
+            int  err;                                                                \
+        } as;                                                                        \
+        bool tag;                                                                    \
+    } Result_##type
+
+#define OK(type, val) (Result_##type) { .is_ok = true, .as.val = (val) }
+#define ERR(type, err) (Result_##type) { .as.err = err }
+#define RUnwarp(ret) ret->is_ok ? opt->as.val : assert(false && "ERROR: error unwarp")
+
+#define Unwarp(x)                                                                    \
+    _Generic((x->tag),                                                               \
+        void*: OUnwarp,                                                              \
+        bool:  RUnwarp,                                                              \
+    )(x)
+
+[[noreturn]] DA void panic(char* msg) {
+    fprintf(stderr, "%s\n", msg);
+    exit(-1);
+}
+
+DA void panic_if(bool cond, char* msg) {
+    if (cond) panic(msg);
 }
 
 #endif // DA_H_
