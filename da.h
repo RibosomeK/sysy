@@ -60,6 +60,13 @@
 
 #define DA_clear(da) (da)->length = 0
 
+#define DA_resize(da, size)                                                          \
+    do {                                                                             \
+        (da)->capacity = (size);                                                     \
+        (da)->items = realloc((da)->items, sizeof(char)*(da)->capacity);             \
+        assert((da)->items != NULL && "ERROR: resize failed");                       \
+    } while (false)
+
 typedef struct {
     char*  items;
     size_t length;
