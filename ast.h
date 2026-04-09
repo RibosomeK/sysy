@@ -78,35 +78,27 @@ typedef struct {
     size_t  pos;
 } Parser;
 
-typedef enum {
-    MISSING_SEMI = 1,
-    MISSING_EXPR,
-} ParseError;
-
-typedef struct {
-    bool       is_ok;
-    ParseError err;
-} ParseResult;
-
-Token PARSER_curr(Parser* parser) {
+static Token PARSER_curr(Parser* parser) {
     return parser->tokens->items[parser->pos];
 }
 
-Token PARSER_consume(Parser* parser) {
+static Token PARSER_consume(Parser* parser) {
     Token curr = PARSER_curr(parser);
     parser->pos += 1;
     return curr;
 }
 
-Token PARSER_next(Parser* parser) {
+static Token PARSER_next(Parser* parser) {
     parser->pos += 1;
     return PARSER_curr(parser);
 }
 
-ParseResult parse_ret(Parser* parser, Nodes* nodes) {
+static Node AST_parse(Parser* parser);
+
+static Node parse_ret(Parser* parser) {
     Token curr = PARSER_next(parser);
-    if (curr.type != TOK_INT) 
-        return (ParseResult){ .err = MISSING_EXPR };
+    if (curr.type != TOK_INT)
+        panic("Error: Missing expression");
     int val = curr.as.integer;
     curr = PARSER_next(parser);
     if (
@@ -115,40 +107,78 @@ ParseResult parse_ret(Parser* parser, Nodes* nodes) {
     )
         PARSER_consume(parser);
     else
-        return (ParseResult){ .err = MISSING_SEMI };
-    DA_append(
-        nodes, 
-        ((Node){ .kind = RET, .as.ret = { .val = val } })
-    );
-    return (ParseResult){ .is_ok = true };
+        panic("Error: Missing semicolon");
+    return (Node) {
+        .kind = RET,
+        .as.ret = {
+            .val = val
+        }
+    };
 }
 
-void AST_parse(Parser* parser, Nodes* nodes) {
-    ParseResult result = { .is_ok = true };
-    while (parser->pos < parser->tokens->length) {
-        Token curr = PARSER_curr(parser);
-        if (curr.type == TOK_IDENT) {
-            if (SV_eq(&curr.as.str_view, "return")) {
-                result = parse_ret(parser, nodes);
-                if (!result.is_ok) goto error;
-            } else {
-                assert(false && "NOT IMPLEMENTED YET");
+static Node parse_block(Parser* parser) {
+    Node block = { .kind = BLOCK, .as.block = {0} };
+    Token next = PARSER_next(parser);
+    while (!(next.type == TOK_PUNC && SV_eq(&next.as.str_view, "}"))) {
+        if (next.type == TOK_EOF)
+            panic("Error: unbalanced brackets");
+        Node sub_node = AST_parse(parser);
+        DA_append(&block.as.block, sub_node);
+        next = PARSER_curr(parser);
+    }
+    PARSER_consume(parser);
+    return block;
+}
+
+static Node parse_def(Parser* parser) {
+    Token next = PARSER_next(parser);
+    if (next.type != TOK_IDENT)
+        panic("Error: Missing identifier");
+    if (SV_not_eq(&next.as.str_view, "main"))
+        panic("Error: function name should be main");
+    StrView name = next.as.str_view;
+    next = PARSER_next(parser);
+    if (next.type != TOK_PUNC || SV_not_eq(&next.as.str_view, "("))
+        panic("Error: '(' is expected");
+    next = PARSER_next(parser);
+    if (next.type != TOK_PUNC || SV_not_eq(&next.as.str_view, ")"))
+        panic("Error: unbalanced parenthesis");
+    next = PARSER_next(parser);
+    if (next.type != TOK_PUNC)
+        panic("Error: '(' is expected");
+    if (SV_eq(&next.as.str_view, ";"))
+        panic("function declare is not yet implemented");
+    if (SV_eq(&next.as.str_view, "{")) {
+        Node* block = malloc(sizeof(Node));
+        panic_if(block == nullptr, "malloc failed");
+        Node tmp = parse_block(parser);
+        *block = tmp;
+        return (Node) {.kind = FUNC_DEF,
+            .as.func_def = {
+                .type = DATA_INT,
+                .name = name,
+                .body = block,
             }
-        } else if (curr.type == TOK_EOF) {
-            break;
-        } else {
-            assert(false && "NOT IMPLEMENTED YET");
+        };
+    }
+    panic("Error: '{' is expected");
+}
+
+static Node AST_parse(Parser* parser) {
+    Token curr = PARSER_curr(parser);
+    panic_if(curr.type == TOK_EOF, "Error: EOF");
+    if (curr.type == TOK_IDENT) {
+        if (SV_eq(&curr.as.str_view, "return")) {
+            return parse_ret(parser);
         }
+        if (SV_eq(&curr.as.str_view, "int")) {
+            Node node = parse_def(parser);
+            return node;
+        }
+        assert(false && "NOT IMPLEMENTED YET");
     }
-error:
-    switch (result.err) {
-        case MISSING_SEMI: 
-            fprintf(stderr, "ERROR: Missing semicolon\n"); 
-            break;
-        case MISSING_EXPR: 
-            fprintf(stderr, "ERROR: Missing expresion\n"); 
-            break;
-    }
+    assert(false && "NOT IMPLEMENTED YET");
+
 }
 
 #endif // AST_H_
