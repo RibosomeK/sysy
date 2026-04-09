@@ -13,11 +13,11 @@ typedef enum {
     DATA_INT, 
 } DataType;
 
-void DATA_TYPE_display(DataType type) {
+static void DATA_TYPE_to_str(DataType type, Str* buf) {
     switch (type) {
-    case DATA_INT:
-        printf("int");
-        break;
+        case DATA_INT:
+            STR_append(buf, "int");
+            break;
     }
 }
 
@@ -39,25 +39,32 @@ struct Node {
     } as;
 };
 
-void NODE_display(Node* node) {
+static void NODE_to_str(Node* node, Str* buf) {
     switch (node->kind) {
-    case RET:
-        printf("return %d;", node->as.ret.val);
-        break;
-    case BLOCK:
-        printf("{ ");
-        DA_foreach(&(node->as.block), sub_node) {
-            NODE_display(sub_node);
-        }
-        printf("} ");
-        break;
-    case FUNC_DEF:
-        DATA_TYPE_display(node->as.func_def.type);
-        printf(" %s()", node->as.func_def.name);
-        NODE_display(node->as.func_def.body);
-        break;
+        case RET:
+            STR_append(buf, "return ");
+            STR_append_int(buf, node->as.ret.val);
+            STR_append(buf, ";");
+            break;
+        case BLOCK:
+            STR_append(buf, "{ ");
+            DA_foreach(&node->as.block, sub_node) {
+                NODE_to_str(sub_node, buf);
+            }
+            STR_append(buf, " }");
+            break;
+        case FUNC_DEF:
+            DATA_TYPE_to_str(node->as.func_def.type, buf);
+            STR_append(buf, " ");
+            STR_append_by_size(
+                buf,
+                node->as.func_def.name.items,
+                node->as.func_def.name.length
+            );
+            STR_append(buf, " ");
+            NODE_to_str(node->as.func_def.body, buf);
+            break;
     }
-    printf("\n");
 }
 
 typedef struct {
