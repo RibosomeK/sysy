@@ -23,21 +23,17 @@ typedef struct {
     size_t capacity;
 } Tokens;
 
-void TOKEN_display(Tokens* tokens) {
-    DA_foreach(tokens, token) {
-        size_t idx = token - tokens->items;
-        switch (token->type) {
-        case TOK_IDENT:
-        case TOK_PUNC:
-        case TOK_EOF:
-            printf("%zu:", idx);
-            fwrite(token->as.str_view.items, 1, token->as.str_view.length, stdout);
-            printf("\n");
-            break;
-        case TOK_INT:
-            printf("%zu:%d\n", idx, token->as.integer);
-            break;
-        }
+static void TOKEN_to_str(Token* token, Str* buf) {
+    switch (token->type) {
+    case TOK_IDENT:
+    case TOK_PUNC:
+    case TOK_EOF:
+        STR_append_by_size(buf, token->as.str_view.items, token->as.str_view.length);
+        break;
+    case TOK_INT:
+        DA_resize(buf, 21);
+        sprintf(buf->items, "%d", token->as.integer);
+        break;
     }
 }
 
