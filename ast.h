@@ -27,14 +27,14 @@ struct Node {
     union {
         struct { int val; } ret;
         struct {
-            Node* items;
+            Node*  items;
             size_t length;
             size_t capacity;
         } block;
         struct {
             DataType type;
-            char* name;
-            Node* body;
+            StrView  name;
+            Node*    body;
         } func_def;
     } as;
 };
