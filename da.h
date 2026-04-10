@@ -173,7 +173,7 @@ DA bool SV_sv_eq(StrView* sv1, StrView* sv2) {
 #define Option(type) Option_##type
 #define SOME(type, val) (Option(type)) { .is_some = true, .as.some = (val) }
 #define NONE(type) (Option(type)) { .as.none = nullptr }
-#define OUnwarp(opt) opt->is_some ? opt->as.some : assert(false && "ERROR: none unwarp")
+#define OUnwrap(opt) opt->is_some ? opt->as.some : assert(false && "ERROR: none unwrap")
 
 #define RESULT_DEF(type)                                                             \
     typedef struct {                                                                 \
@@ -188,12 +188,12 @@ DA bool SV_sv_eq(StrView* sv1, StrView* sv2) {
 #define Result(type) Result_##type
 #define OK(type, val) (Result(type)) { .is_ok = true, .as.val = (val) }
 #define ERR(type, err) (Result(type)) { .as.err = err }
-#define RUnwarp(ret) ret->is_ok ? opt->as.val : assert(false && "ERROR: error unwarp")
+#define RUnwrap(ret) ret->is_ok ? opt->as.val : assert(false && "ERROR: error unwrap")
 
-#define Unwarp(x)                                                                    \
+#define Unwrap(x)                                                                    \
     _Generic((x->tag),                                                               \
-        void*: OUnwarp,                                                              \
-        bool:  RUnwarp,                                                              \
+        void*: OUnwrap,                                                              \
+        bool:  RUnwrap,                                                              \
     )(x)
 
 [[noreturn]] DA void panic(char* msg) {
