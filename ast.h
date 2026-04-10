@@ -4,9 +4,9 @@
 #include "lex.h"
 
 typedef enum {
-    RET,
-    BLOCK,
-    FUNC_DEF
+    AST_RET,
+    AST_BLOCK,
+    AST_FUNC_DEF
 } NodeKind;
 
 typedef enum {
@@ -41,19 +41,19 @@ struct Node {
 
 static void NODE_to_str(Node* node, Str* buf) {
     switch (node->kind) {
-        case RET:
+        case AST_RET:
             STR_append(buf, "return ");
             STR_append_int(buf, node->as.ret.val);
             STR_append(buf, ";");
             break;
-        case BLOCK:
+        case AST_BLOCK:
             STR_append(buf, "{ ");
             DA_foreach(&node->as.block, sub_node) {
                 NODE_to_str(sub_node, buf);
             }
             STR_append(buf, " }");
             break;
-        case FUNC_DEF:
+        case AST_FUNC_DEF:
             DATA_TYPE_to_str(node->as.func_def.type, buf);
             STR_append(buf, " ");
             STR_append_by_size(
@@ -109,7 +109,7 @@ static Node parse_ret(Parser* parser) {
     else
         panic("Error: Missing semicolon");
     return (Node) {
-        .kind = RET,
+        .kind = AST_RET,
         .as.ret = {
             .val = val
         }
@@ -117,7 +117,7 @@ static Node parse_ret(Parser* parser) {
 }
 
 static Node parse_block(Parser* parser) {
-    Node block = { .kind = BLOCK, .as.block = {0} };
+    Node block = { .kind = AST_BLOCK, .as.block = {0} };
     Token next = PARSER_next(parser);
     while (!(next.type == TOK_PUNC && SV_eq(&next.as.str_view, "}"))) {
         if (next.type == TOK_EOF)
@@ -153,7 +153,7 @@ static Node parse_def(Parser* parser) {
         panic_if(block == nullptr, "malloc failed");
         Node tmp = parse_block(parser);
         *block = tmp;
-        return (Node) {.kind = FUNC_DEF,
+        return (Node) {.kind = AST_FUNC_DEF,
             .as.func_def = {
                 .type = DATA_INT,
                 .name = name,
