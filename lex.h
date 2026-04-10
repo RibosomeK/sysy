@@ -145,7 +145,7 @@ void LEX_parse(Lexer* lexer, Tokens* tokens) {
                 DA_append(tokens, ((Token){.type=TOK_INT, .as.integer=num.as.integer}));
                 break;
             case NUM_FLOAT:
-                assert(false && "TODO: Implement floating parsing");
+                panic("TODO: Implement floating parsing");
                 break;
             }
             continue;

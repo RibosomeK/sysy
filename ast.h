@@ -175,9 +175,9 @@ static Node AST_parse(Parser* parser) {
             Node node = parse_def(parser);
             return node;
         }
-        assert(false && "NOT IMPLEMENTED YET");
+        panic("NOT IMPLEMENTED YET");
     }
-    assert(false && "NOT IMPLEMENTED YET");
+    panic("NOT IMPLEMENTED YET");
 
 }
 

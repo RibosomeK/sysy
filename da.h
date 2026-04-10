@@ -1,12 +1,20 @@
 #ifndef DA_H_
 #define DA_H_
-#include <assert.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 
 #define INIT_CAPACITY 16
 #define DA [[maybe_unused]] static
+
+[[noreturn]] DA void panic(char* msg) {
+    fprintf(stderr, "%s\n", msg);
+    exit(-1);
+}
+
+DA void panic_if(bool cond, char* msg) {
+    if (cond) panic(msg);
+}
 
 #define DA_def(type, name)                                                           \
     typedef struct {                                                                 \
@@ -21,15 +29,15 @@
             if ((da)->capacity == 0) (da)->capacity = INIT_CAPACITY;                 \
             else (da)->capacity *= 2;                                                \
             (da)->items = realloc((da)->items, sizeof(*(da)->items)*(da)->capacity); \
-            assert((da)->items != NULL && "ERROR: append failed");                   \
+            panic_if((da)->items == NULL, "ERROR: append failed");                   \
         }                                                                            \
-        (da)->items[(da)->length] = (item);                                            \
+        (da)->items[(da)->length] = (item);                                          \
         (da)->length += 1;                                                           \
     } while (false)
 
 #define DA_pop(da, ptr)                                                              \
     do {                                                                             \
-        assert((da)->length != 0 && "ERROR: pop from empty array");                  \
+        panic_if((da)->length == 0, "ERROR: pop from empty array");                  \
         *(ptr) = (da)->items[(da)->length-1];                                        \
         (da)->length -= 1;                                                           \
     } while (false)
@@ -40,18 +48,18 @@
             if ((da)->capacity == 0) (da)->capacity = INIT_CAPACITY;                 \
             else (da)->capacity *= 2;                                                \
             (da)->items = realloc((da)->items, sizeof(*(da)->items)*(da)->capacity); \
-            assert((da)->items != NULL && "ERROR: append failed");                   \
+            panic_if((da)->items == NULL, "ERROR: append failed");                   \
         }                                                                            \
         char* idx = malloc(sizeof(char)*(strlen(str)+1));                            \
-        assert(idx != NULL && "ERROR: append failed");                               \
-        strcpy(idx, (str));                                                            \
+        panic_if(idx == NULL, "ERROR: append failed");                               \
+        strcpy(idx, (str));                                                          \
         (da)->items[(da)->length] = idx;                                             \
         (da)->length += 1;                                                           \
     } while (false)
 
 #define DA_pop_str(da, ptr)                                                          \
     do {                                                                             \
-        assert((da)->length != 0 && "ERROR: pop from empty array");                  \
+        panic_if((da)->length == 0, "ERROR: pop from empty array");                  \
         (ptr) = (da)->items[(da)->length-1];                                         \
         (da)->length -= 1;                                                           \
     } while (false)
@@ -65,7 +73,7 @@
     do {                                                                             \
         (da)->capacity = (size);                                                     \
         (da)->items = realloc((da)->items, sizeof(char)*(da)->capacity);             \
-        assert((da)->items != NULL && "ERROR: resize failed");                       \
+        panic_if((da)->items == NULL, "ERROR: resize failed");                       \
     } while (false)
 
 typedef struct {
@@ -85,7 +93,7 @@ DA void STR_append(Str* builder, char* str) {
         if (builder->capacity == 0) builder->capacity = INIT_CAPACITY + str_len + 1;
         else builder->capacity = 2 * builder->capacity + str_len + 1;
         builder->items = realloc(builder->items, sizeof(char)*builder->capacity);
-        assert(builder->items != NULL && "ERROR: append failed");
+        panic_if(builder->items == NULL, "ERROR: append failed");
     }
     strcpy(&builder->items[builder->length], str);
     builder->length += str_len;
@@ -173,7 +181,7 @@ DA bool SV_sv_eq(StrView* sv1, StrView* sv2) {
 #define Option(type) Option_##type
 #define SOME(type, val) (Option(type)) { .is_some = true, .as.some = (val) }
 #define NONE(type) (Option(type)) { .as.none = nullptr }
-#define OUnwrap(opt) opt->is_some ? opt->as.some : assert(false && "ERROR: none unwrap")
+#define OUnwrap(opt) opt->is_some ? opt->as.some : panic("ERROR: none unwrap")
 
 #define RESULT_DEF(type)                                                             \
     typedef struct {                                                                 \
@@ -188,21 +196,12 @@ DA bool SV_sv_eq(StrView* sv1, StrView* sv2) {
 #define Result(type) Result_##type
 #define OK(type, val) (Result(type)) { .is_ok = true, .as.val = (val) }
 #define ERR(type, err) (Result(type)) { .as.err = err }
-#define RUnwrap(ret) ret->is_ok ? opt->as.val : assert(false && "ERROR: error unwrap")
+#define RUnwrap(ret) ret->is_ok ? opt->as.val : panic("ERROR: error unwrap")
 
 #define Unwrap(x)                                                                    \
     _Generic((x->tag),                                                               \
         void*: OUnwrap,                                                              \
         bool:  RUnwrap,                                                              \
     )(x)
-
-[[noreturn]] DA void panic(char* msg) {
-    fprintf(stderr, "%s\n", msg);
-    exit(-1);
-}
-
-DA void panic_if(bool cond, char* msg) {
-    if (cond) panic(msg);
-}
 
 #endif // DA_H_
