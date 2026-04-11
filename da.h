@@ -136,6 +136,10 @@ DA StrView SV_from(char* cstr) {
     return (StrView){.items=cstr, .length=strlen(cstr)};
 }
 
+DA void STR_append_sv(Str* builder, StrView* sv) {
+    STR_append_by_size(builder, sv->items, sv->length);
+}
+
 #define SV_eq(sv, str_like)                                                          \
     _Generic((str_like),                                                             \
         char*:    SV_cstr_eq,                                                        \
