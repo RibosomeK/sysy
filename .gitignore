@@ -1,2 +1,6 @@
-/build
+/build/*
+!/build/.gitkeep
 /.idea
+/.vscode
+/lib/*
+!/lib/.gitkeep

@@ -4,6 +4,7 @@
 #include "lex.h"
 #include "ast.h"
 #include "kir.h"
+#include "include/koopa.h"
 
 int main() {
     char* program = "int main() { return 0; }";
@@ -33,5 +34,15 @@ int main() {
     KirUnit unit = KIR_from_node(&nodes.items[0]);
     KIR_to_str(&unit, &buf, 0);
     printf("%s\n", buf.items);
+    printf("================KOOPA===================\n");
+    koopa_program_t kp = {0};
+    koopa_error_code_t ret = koopa_parse_from_string(buf.items,&kp);
+    panic_if(ret != KOOPA_EC_SUCCESS, "ERROR: failed to read koopa ir string");
+    STR_clear(&buf);
+    size_t write_len = buf.capacity;
+    ret = koopa_dump_to_string(kp, buf.items, &write_len);
+    panic_if(ret != KOOPA_EC_SUCCESS, "Error: failed to dump koopa ir string");
+    printf("%s\n", buf.items);
+    koopa_delete_program(kp);
     return 0;
 }
