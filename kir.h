@@ -6,7 +6,7 @@ typedef enum {
     I32,
 } KirType;
 
-KirType KIR_TYPE_from_datatype(DataType type) {
+static KirType KIR_TYPE_from_datatype(DataType type) {
     switch (type) {
         case DATA_INT:
             return I32;
