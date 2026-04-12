@@ -12,6 +12,10 @@
     exit(-1);
 }
 
+[[noreturn]] DA void unreachable() {
+    panic("Error: unreachable");
+}
+
 DA void panic_if(bool cond, char* msg) {
     if (cond) panic(msg);
 }

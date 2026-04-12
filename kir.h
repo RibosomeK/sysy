@@ -10,6 +10,7 @@ KirType KIR_TYPE_from_datatype(DataType type) {
     switch (type) {
         case DATA_INT:
             return I32;
+        default: unreachable();
     }
 }
 
