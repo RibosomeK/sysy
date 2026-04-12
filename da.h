@@ -1,6 +1,7 @@
 #ifndef DA_H_
 #define DA_H_
 #include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
