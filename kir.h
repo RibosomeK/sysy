@@ -1,6 +1,9 @@
 #ifndef KIR_H_
 #define KIR_H_
 #include "ast.h"
+#include "da.h"
+#include "include/koopa.h"
+#include <stdlib.h>
 
 typedef enum {
     I32,
@@ -160,6 +163,102 @@ static void KIR_to_str(KirUnit* unit, Str* buf, int count) {
         case KIR_BLOCK: {
             KIR_BLOCK_to_str(&unit->as.block, buf, count);
         } break;
+    }
+}
+
+typedef struct {
+    size_t capacity;
+} SliceHeader;
+
+static koopa_raw_slice_t KIR_new_slice(koopa_raw_slice_item_kind_t kind) {
+    koopa_raw_slice_t slice = {0};
+    slice.kind = kind;
+    SliceHeader* buf = malloc(sizeof(SliceHeader) + sizeof(void*)*INIT_CAPACITY);
+    panic_if(buf == nullptr, "Error: failed to init new slice");
+    buf->capacity = INIT_CAPACITY;
+    slice.buffer = (void*)(buf + 1);
+    return slice;
+};
+
+static size_t KIR_slice_cap(koopa_raw_slice_t* slice) {
+    return ((SliceHeader*)slice->buffer - 1)->capacity;
+}
+
+static void KIR_slice_append_ptr(koopa_raw_slice_t* slice, void* item) {
+    if (KIR_slice_cap(slice) <= slice->len) {
+        SliceHeader* header = (SliceHeader*)(slice->buffer) - 1;
+        header->capacity *= 2;
+        header = realloc(header, sizeof(void*)*header->capacity + sizeof(SliceHeader));
+        panic_if(header == nullptr, "Error: failed to append to slice");
+        slice->buffer = (void*)(header + 1);
+    }
+    slice->buffer[slice->len] = item;
+    slice->len += 1;
+}
+
+#define KIR_slice_append_val(slice, type, item)                                            \
+    do {                                                                             \
+        if (KIR_slice_cap((slice)) <= (slice)->len) {                                \
+            SliceHeader* header = (SliceHeader*)((slice)->buffer) - 1;               \
+            header->capacity *= 2;                                                   \
+            header = realloc( \
+                header, \
+                sizeof(void*)*header->capacity + sizeof(SliceHeader) \
+            );   \
+            panic_if(header == nullptr, "Error: failed to append to slice");         \
+            (slice)->buffer = (void*)(header + 1);                                   \
+        }                                                                            \
+        void* heap = malloc(sizeof((item)));                                         \
+        panic_if(heap == nullptr, "Error: failed to append item to slice");          \
+        *(type*)heap = (item);                                               \
+        (slice)->buffer[(slice)->len] = heap;                                        \
+        (slice)->len += 1;                                                           \
+    } while (false)
+
+#define KIR_slice_append(slice, item)                                                \
+    _Generic((item),                                                                 \
+        void*:   KIR_slice_append_ptr,                                               \
+        default: KIR_slice_append_val                                                \
+    )(slice, item)
+
+static koopa_raw_program_t KIR_to_raw_prog(KirUnit* unit) {
+    koopa_raw_program_t raw_prog = {
+        .values = KIR_new_slice(KOOPA_RSIK_VALUE),
+        .funcs = KIR_new_slice(KOOPA_RSIK_FUNCTION),
+    };
+    return raw_prog;
+}
+
+#define KIR_slice_foreach(slice, type, item)                                         \
+    for (                                                                            \
+        type** item = (type**)(slice)->buffer;                                       \
+        item < (type**)(slice)->buffer + (slice)->len;                               \
+        item++                                                                       \
+    )
+
+static void KIR_handle_err_code(koopa_error_code_t code) {
+    switch (code) {
+        case KOOPA_EC_INVALID_UTF8_STRING:
+            panic("Error: UTF-8 string conversion error");
+        case KOOPA_EC_INVALID_FILE:
+            panic("Error: File operation error");
+        case KOOPA_EC_INVALID_KOOPA_PROGRAM:
+            panic("Error: Koopa IR program parsing error");
+        case KOOPA_EC_IO_ERROR:
+            panic("Error: IO operation error");
+        case KOOPA_EC_NULL_BYTE_ERROR: 
+            panic("Error: Byte array to C string conversion error");
+        case KOOPA_EC_INSUFFICIENT_BUFFER_LENGTH:
+            panic("Error: Insufficient buffer length");
+        case KOOPA_EC_RAW_SLICE_ITEM_KIND_MISMATCH:
+            panic("Error: Mismatch of item kind in raw slice");
+        case KOOPA_EC_NULL_POINTER_ERROR:
+            panic("Error: Passing null pointers to `libkoopa`");
+        case KOOPA_EC_TYPE_MISMATCH:
+            panic("Error: Mismatch of type");
+        case KOOPA_EC_FUNC_PARAM_NUM_MISMATCH:
+            panic("Error: Mismatch of function parameter number");
+        case KOOPA_EC_SUCCESS: break;
     }
 }
 
