@@ -23,7 +23,7 @@ DA void panic_if(bool cond, char* msg) {
 
 #define DA_def(type, name)                                                           \
     typedef struct {                                                                 \
-        type items;                                                                  \
+        type   items;                                                                \
         size_t length;                                                               \
         size_t capacity;                                                             \
     } name
@@ -34,7 +34,7 @@ DA void panic_if(bool cond, char* msg) {
             if ((da)->capacity == 0) (da)->capacity = INIT_CAPACITY;                 \
             else (da)->capacity *= 2;                                                \
             (da)->items = realloc((da)->items, sizeof(*(da)->items)*(da)->capacity); \
-            panic_if((da)->items == NULL, "ERROR: append failed");                   \
+            panic_if((da)->items == nullptr, "ERROR: append failed");                \
         }                                                                            \
         (da)->items[(da)->length] = (item);                                          \
         (da)->length += 1;                                                           \
@@ -53,10 +53,10 @@ DA void panic_if(bool cond, char* msg) {
             if ((da)->capacity == 0) (da)->capacity = INIT_CAPACITY;                 \
             else (da)->capacity *= 2;                                                \
             (da)->items = realloc((da)->items, sizeof(*(da)->items)*(da)->capacity); \
-            panic_if((da)->items == NULL, "ERROR: append failed");                   \
+            panic_if((da)->items == nullptr, "ERROR: append failed");                \
         }                                                                            \
         char* idx = malloc(sizeof(char)*(strlen(str)+1));                            \
-        panic_if(idx == NULL, "ERROR: append failed");                               \
+        panic_if(idx == nullptr, "ERROR: append failed");                            \
         strcpy(idx, (str));                                                          \
         (da)->items[(da)->length] = idx;                                             \
         (da)->length += 1;                                                           \
@@ -78,7 +78,7 @@ DA void panic_if(bool cond, char* msg) {
     do {                                                                             \
         (da)->capacity = (size);                                                     \
         (da)->items = realloc((da)->items, sizeof(char)*(da)->capacity);             \
-        panic_if((da)->items == NULL, "ERROR: resize failed");                       \
+        panic_if((da)->items == nullptr, "ERROR: resize failed");                    \
     } while (false)
 
 typedef struct {
@@ -98,7 +98,7 @@ DA void STR_append(Str* builder, char* str) {
         if (builder->capacity == 0) builder->capacity = INIT_CAPACITY + str_len + 1;
         else builder->capacity = 2 * builder->capacity + str_len + 1;
         builder->items = realloc(builder->items, sizeof(char)*builder->capacity);
-        panic_if(builder->items == NULL, "ERROR: append failed");
+        panic_if(builder->items == nullptr, "ERROR: append failed");
     }
     strcpy(&builder->items[builder->length], str);
     builder->length += str_len;
@@ -110,7 +110,7 @@ DA void STR_extend(Str* builder, char* str, ...) {
     do {
         STR_append(builder, str);
         str = va_arg(va, char*);
-    } while (str != NULL);
+    } while (str != nullptr);
     va_end(va);
 }
 
@@ -138,7 +138,7 @@ typedef struct {
 } StrView;
 
 DA StrView SV_from(char* cstr) {
-    return (StrView){.items=cstr, .length=strlen(cstr)};
+    return (StrView) { .items=cstr, .length=strlen(cstr) };
 }
 
 DA void STR_append_sv(Str* builder, StrView* sv) {
