@@ -262,4 +262,94 @@ static void KIR_handle_err_code(koopa_error_code_t code) {
     }
 }
 
+static koopa_raw_program_t KIR_new_raw_prog() {
+    return (koopa_raw_program_t) { 
+        .values = KIR_new_slice(KOOPA_RSIK_VALUE), 
+        .funcs = KIR_new_slice(KOOPA_RSIK_FUNCTION) 
+    };
+}
+
+static struct koopa_raw_type_kind INT32_TYPE = { .tag = KOOPA_RTT_INT32 };
+static struct koopa_raw_type_kind UNIT_TYPE  = { .tag = KOOPA_RTT_UNIT };
+
+static koopa_raw_integer_t KIR_new_raw_int(int val) {
+    return (koopa_raw_integer_t) { .value = val };
+}
+
+static koopa_raw_value_kind_t KIR_new_raw_int_kind(int val) {
+    return (koopa_raw_value_kind_t) { 
+        .tag  = KOOPA_RVT_INTEGER, 
+        .data = { .integer = KIR_new_raw_int(val) }
+    };
+}
+
+static struct koopa_raw_value_data 
+KIR_new_raw_int_data(int val, koopa_raw_slice_t used_by) {
+    return  (struct koopa_raw_value_data) {
+        .ty      = &INT32_TYPE,
+        .name    = nullptr,
+        .used_by = used_by,
+        .kind    = KIR_new_raw_int_kind(val),
+    };
+}
+
+static koopa_raw_value_kind_t KIR_new_raw_ret_kind(koopa_raw_value_t val) {
+    return (koopa_raw_value_kind_t) {
+        .tag  = KOOPA_RVT_RETURN,
+        .data = { .ret = { .value = val } }
+    };
+}
+
+static struct koopa_raw_value_data KIR_new_raw_ret_data(
+    koopa_raw_value_t val, 
+    koopa_raw_slice_t used_by
+) {
+    return  (struct koopa_raw_value_data) {
+        .ty      = &UNIT_TYPE,
+        .name    = nullptr,
+        .used_by = used_by,
+        .kind    = KIR_new_raw_ret_kind(val),
+    };
+}
+
+static koopa_raw_basic_block_data_t KIR_new_raw_block_data(
+    koopa_raw_slice_t params, koopa_raw_slice_t used_by
+) {
+    return (koopa_raw_basic_block_data_t) {
+        .name    = nullptr,
+        .params  = params,
+        .used_by = used_by,
+        .insts   = KIR_new_slice(KOOPA_RSIK_VALUE),
+    };
+}
+
+static struct koopa_raw_type_kind KIR_new_raw_func_kind(
+    koopa_raw_slice_t      params_kind, 
+    koopa_raw_type_kind_t* ret_kind
+) {
+    return (struct koopa_raw_type_kind) {
+        .tag = KOOPA_RTT_FUNCTION,
+        .data.function = {
+            .params = params_kind,
+            .ret    = ret_kind,
+        }
+    };
+}
+
+static koopa_raw_function_data_t KIR_new_raw_func_data(
+    koopa_raw_type_t  type,
+    char*             name,
+    koopa_raw_slice_t params
+) {
+    return (koopa_raw_function_data_t) { 
+        // type is function signature
+        // for main is () -> i32
+        .ty =  type, 
+        // name should start with @ or %
+        .name = name, 
+        .params = params, 
+        .bbs = KIR_new_slice(KOOPA_RSIK_BASIC_BLOCK),
+    };
+}
+
 #endif // KIR_H_
