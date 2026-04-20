@@ -6,7 +6,8 @@
 typedef enum {
     AST_RET,
     AST_BLOCK,
-    AST_FUNC_DEF
+    AST_FUNC_DEF,
+    AST_PROG,
 } NodeKind;
 
 typedef enum {
@@ -36,6 +37,11 @@ struct Node {
             StrView  name;
             Node*    body;
         } func_def;
+        struct {
+            Node*  items;
+            size_t length;
+            size_t capacity;
+        } prog;
     } as;
 };
 
@@ -64,6 +70,11 @@ static void NODE_to_str(Node* node, Str* buf) {
             STR_append(buf, " ");
             NODE_to_str(node->as.func_def.body, buf);
             break;
+        case AST_PROG: {
+            DA_foreach(&node->as.prog, sub_node) {
+                NODE_to_str(sub_node, buf);
+            }
+        } break;
     }
 }
 
@@ -93,7 +104,7 @@ static Token PARSER_next(Parser* parser) {
     return PARSER_curr(parser);
 }
 
-static Node AST_parse(Parser* parser);
+static Node __AST_parse(Parser* parser);
 
 static Node parse_ret(Parser* parser) {
     Token curr = PARSER_next(parser);
@@ -122,7 +133,7 @@ static Node parse_block(Parser* parser) {
     while (!(next.type == TOK_PUNC && SV_eq(&next.as.str_view, "}"))) {
         if (next.type == TOK_EOF)
             panic("Error: unbalanced brackets");
-        Node sub_node = AST_parse(parser);
+        Node sub_node = __AST_parse(parser);
         DA_append(&block.as.block, sub_node);
         next = PARSER_curr(parser);
     }
@@ -164,9 +175,8 @@ static Node parse_def(Parser* parser) {
     panic("Error: '{' is expected");
 }
 
-static Node AST_parse(Parser* parser) {
+static Node __AST_parse(Parser* parser) {
     Token curr = PARSER_curr(parser);
-    panic_if(curr.type == TOK_EOF, "Error: EOF");
     if (curr.type == TOK_IDENT) {
         if (SV_eq(&curr.as.str_view, "return")) {
             return parse_ret(parser);
@@ -178,7 +188,14 @@ static Node AST_parse(Parser* parser) {
         panic("NOT IMPLEMENTED YET");
     }
     panic("NOT IMPLEMENTED YET");
+}
 
+static Node AST_parse(Parser* parser) {
+    Node prog = { .kind = AST_PROG, .as.prog = {0} };
+    while (PARSER_curr(parser).type != TOK_EOF ) {
+        DA_append(&prog.as.prog, __AST_parse(parser));
+    }
+    return prog;
 }
 
 #endif // AST_H_
