@@ -24,7 +24,7 @@ DA void panic_if(bool cond, char* msg) {
 
 #define DA_def(type, name)                                                           \
     typedef struct {                                                                 \
-        type   items;                                                                \
+        type*   items;                                                               \
         size_t length;                                                               \
         size_t capacity;                                                             \
     } name
