@@ -1,6 +1,7 @@
 #ifndef DA_H_
 #define DA_H_
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -212,5 +213,51 @@ DA bool SV_sv_eq(StrView* sv1, StrView* sv2) {
         void*: OUnwrap,                                                              \
         bool:  RUnwrap,                                                              \
     )(x)
+
+#define ARENA_INIT_CAPACITY 4096
+
+typedef struct {
+    uint8_t* start;
+    size_t   offset;
+    size_t   capacity;
+} Arena;
+
+DA size_t Arena_get_padding(Arena* arena, size_t align) {
+    uintptr_t curr = (uintptr_t)(arena->start + arena->offset);
+    return curr % align == 0 ? 0 : align - curr % align;
+}
+
+DA void* Arena_alloc(Arena* arena, size_t size, size_t align) {
+    size_t padding = Arena_get_padding(arena, align);
+    if (arena->capacity < arena->offset + size + padding) {
+        if (arena->capacity == 0) arena->capacity = ARENA_INIT_CAPACITY;
+        else arena->capacity *= 2;  
+        while (arena->capacity < arena->offset + size + padding) {
+            arena->capacity *= 2;  
+        }
+        arena->start = realloc(arena->start, arena->capacity);
+        panic_if(arena->start == nullptr, "Error: Arena alloc failed");
+        padding = Arena_get_padding(arena, align);
+    }
+    void* ret_ptr = arena->start + arena->offset + padding;
+    arena->offset += padding + size;
+    return ret_ptr;
+}
+
+#define ARENA_alloc(arena, val)                                                      \
+    ({                                                                               \
+        typeof(val) tmp = (val);                                                     \
+        typeof(tmp)* ptr = Arena_alloc((arena), sizeof(tmp), alignof(typeof(val)));  \
+        *ptr = tmp;                                                                  \
+        ptr;                                                                         \
+    })
+
+DA void Arena_reset(Arena* arena) {
+    arena->offset = 0;
+}
+
+DA void Arena_free(Arena* arena) {
+    free(arena->start);
+}
 
 #endif // DA_H_
