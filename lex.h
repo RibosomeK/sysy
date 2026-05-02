@@ -41,22 +41,23 @@ typedef struct {
     char*  src;
     size_t pos;
     size_t len;
+    Loc    loc;
 } Lexer;
 
 bool is_identifier_inital(char c) {
     int ord = (int)c;
-    if (65 <= ord && ord <= 90)     return true;
-    if (ord == 95)                  return true;
-    if (97 <= ord && ord <= 122)    return true;
+    if (65 <= ord && ord <= 90)  return true;
+    if (ord == 95)               return true;
+    if (97 <= ord && ord <= 122) return true;
     return false;
 }
 
 bool is_identifier_follow(char c) {
     int ord = (int)c;
-    if (48 <= ord && ord <= 57)     return true;
-    if (65 <= ord && ord <= 90)     return true;
-    if (ord == 95)                  return true;
-    if (97 <= ord && ord <= 122)    return true;
+    if (48 <= ord && ord <= 57)  return true;
+    if (65 <= ord && ord <= 90)  return true;
+    if (ord == 95)               return true;
+    if (97 <= ord && ord <= 122) return true;
     return false; 
 }
 
@@ -73,7 +74,7 @@ bool is_whitespace(char c) {
 
 bool is_digit(char c) {
     int ord = (int)c;
-    if (48 <= ord && ord <= 57)     return true;
+    if (48 <= ord && ord <= 57) return true;
     return false;
 }
 
@@ -102,7 +103,7 @@ typedef enum {
 typedef struct {
     NUM_TYPE type;
     union {
-        int integer;
+        int   integer;
         float floating;
     } as;
 } Number;
@@ -121,7 +122,7 @@ Number parse_num(Lexer* lexer) {
         }
     }
     DA_append(&buf, '\0');
-    Number num = {.type=NUM_INT, .as.integer=atoi(buf.items)};
+    Number num = { .type=NUM_INT, .as.integer = atoi(buf.items) };
     free(buf.items);
     return num;
 }
@@ -131,7 +132,7 @@ void LEX_parse(Lexer* lexer, Tokens* tokens) {
         char curr = lexer->src[lexer->pos];
         if (is_identifier_inital(curr)) {
             StrView ident = parse_ident(lexer);
-            DA_append(tokens, ((Token){.type=TOK_IDENT, .as.str_view=ident}));
+            DA_append(tokens, ((Token) { .type = TOK_IDENT, .as.str_view = ident }));
             continue;
         }
         if (is_whitespace(curr)) {
@@ -142,7 +143,7 @@ void LEX_parse(Lexer* lexer, Tokens* tokens) {
             Number num = parse_num(lexer);
             switch (num.type) {
             case NUM_INT:
-                DA_append(tokens, ((Token){.type=TOK_INT, .as.integer=num.as.integer}));
+                DA_append(tokens, ((Token) { .type = TOK_INT, .as.integer = num.as.integer }));
                 break;
             case NUM_FLOAT:
                 panic("TODO: Implement floating parsing");
@@ -155,15 +156,15 @@ void LEX_parse(Lexer* lexer, Tokens* tokens) {
             tokens, 
             ((Token){
                 .type=TOK_PUNC, 
-                .as.str_view=(StrView){
-                    .items=&lexer->src[lexer->pos], 
-                    .length=1
+                .as.str_view = (StrView) {
+                    .items   = &lexer->src[lexer->pos], 
+                    .length  = 1
                 }
             })
         );
         lexer->pos += 1;
     }
-    DA_append(tokens, ((Token){.type=TOK_EOF, .as.str_view=SV_from("\0")}));
+    DA_append(tokens, ((Token) { .type=TOK_EOF, .as.str_view = SV_from("\0") }));
 }
 
 #endif // LEXER_H_
