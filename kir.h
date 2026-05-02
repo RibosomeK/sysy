@@ -3,168 +3,10 @@
 #include "ast.h"
 #include "da.h"
 #include "include/koopa.h"
+#include <stdint.h>
 #include <stdlib.h>
 
-typedef enum {
-    I32,
-} KirType;
-
-static KirType KIR_TYPE_from_datatype(DataType type) {
-    switch (type) {
-        case DATA_INT:
-            return I32;
-        default: unreachable();
-    }
-}
-
-static void KIR_TYPE_to_str(KirType type, Str* buf) {
-    switch (type) {
-        case I32:
-            STR_append(buf, "i32");
-            break;
-    }
-}
-
-typedef enum {
-    INTEGER,
-    RETURN,
-} KirValueKind;
-
-typedef struct KirValue KirValue;
-struct KirValue {
-    KirValueKind kind;
-    union {
-        int       integer;
-        KirValue* ret;
-    } as;
-};
-
-typedef struct {
-    KirValue* items;
-    size_t    length;
-    size_t    capacity;
-} KirBlock;
-
-typedef struct {
-    KirBlock* items;
-    size_t    length;
-    size_t    capacity;
-    StrView   name;
-    KirType   type;
-} KirFunc;
-
-typedef struct {
-    struct {
-        KirFunc* items;
-        size_t   length;
-        size_t   capacity;
-    } funcs;
-} KirProgram;
-
-typedef enum {
-    KIR_VALUE,
-    KIR_BLOCK,
-    KIR_FUNC,
-    KIR_PROG,
-} KirUnitKind;
-
-typedef struct {
-    KirUnitKind kind;
-    union {
-        KirProgram prog;
-        KirFunc    func;
-        KirBlock   block;
-        KirValue   val;
-    } as;
-} KirUnit;
-
-static KirUnit KIR_from_node(Node* node) {
-    KirUnit unit = {0};
-    switch (node->kind) {
-        case AST_FUNC_DEF:
-            unit.kind = KIR_FUNC;
-            unit.as.func.name = node->as.func_def.name;
-            unit.as.func.type = KIR_TYPE_from_datatype(node->as.func_def.type);
-            KirUnit block = KIR_from_node(node->as.func_def.body);
-            DA_append(&unit.as.func, block.as.block);
-            break;
-        case AST_RET:
-            unit.kind = KIR_VALUE;
-            KirValue* ret = malloc(sizeof(KirValue));
-            KirValue tmp = {
-                .kind = INTEGER,
-                .as.integer = node->as.ret.val,
-            };
-            *ret = tmp;
-            unit.as.val = (KirValue) {
-                .kind = RETURN,
-                .as.ret = ret,
-            };
-            break;
-        case AST_BLOCK:
-            unit.kind = KIR_BLOCK;
-            DA_foreach(&node->as.block, sub_node) {
-                KirUnit sub_unit = KIR_from_node(sub_node);
-                panic_if(sub_unit.kind != KIR_VALUE, "ERROR: Value is expected");
-                DA_append(&unit.as.block, sub_unit.as.val);
-            }
-            break;
-    }
-    return unit;
-}
-
-static void KIR_VALUE_to_str(KirValue* val, Str* buf) {
-    switch (val->kind) {
-        case RETURN: {
-            STR_append(buf, "ret ");
-            STR_append_int(buf, val->as.ret->as.integer);
-        } break;
-        case INTEGER: {
-            STR_append_int(buf, val->as.integer);
-        } break;
-    }
-}
-
-static void KIR_BLOCK_to_str(KirBlock* block, Str* buf, int count) {
-    STR_append(buf, "%");
-    STR_append_int(buf, count);
-    STR_append(buf, ":\n");
-    DA_foreach(block, val) {
-        KIR_VALUE_to_str(val, buf);
-        STR_append(buf, "\n");
-    }
-}
-
-static void KIR_FUNC_to_str(KirFunc* func, Str* buf, int count) {
-    STR_append(buf, "fun @");
-    STR_append_sv(buf, &func->name);
-    STR_append(buf, "(): ");
-    KIR_TYPE_to_str(func->type, buf);
-    STR_append(buf, " {\n");
-    DA_foreach (func, block) {
-        KIR_BLOCK_to_str(block, buf, count);
-    }
-    STR_append(buf, "}\n");
-}
-
-static void KIR_to_str(KirUnit* unit, Str* buf, int count) {
-    switch (unit->kind) {
-        case KIR_PROG: {
-            DA_foreach(&unit->as.prog.funcs, func) {
-                KIR_FUNC_to_str(func, buf, count);
-            }
-        } break;
-        case KIR_FUNC: {
-            KIR_FUNC_to_str(&unit->as.func, buf, count);
-        } break;
-        case KIR_VALUE: {
-            KIR_VALUE_to_str(unit->as.val.as.ret, buf);
-        } break;
-        case KIR_BLOCK: {
-            KIR_BLOCK_to_str(&unit->as.block, buf, count);
-        } break;
-    }
-}
+static Arena KIR_ARENA = {0};
 
 typedef struct {
     size_t capacity;
@@ -196,38 +38,24 @@ static void KIR_slice_append_ptr(koopa_raw_slice_t* slice, void* item) {
     slice->len += 1;
 }
 
-#define KIR_slice_append_val(slice, type, item)                                            \
+#define KIR_slice_append_val(slice, type, item)                                      \
     do {                                                                             \
         if (KIR_slice_cap((slice)) <= (slice)->len) {                                \
             SliceHeader* header = (SliceHeader*)((slice)->buffer) - 1;               \
             header->capacity *= 2;                                                   \
-            header = realloc( \
-                header, \
-                sizeof(void*)*header->capacity + sizeof(SliceHeader) \
-            );   \
+            header = realloc(                                                        \
+                header,                                                              \
+                sizeof(void*)*header->capacity + sizeof(SliceHeader)                 \
+            );                                                                       \
             panic_if(header == nullptr, "Error: failed to append to slice");         \
             (slice)->buffer = (void*)(header + 1);                                   \
         }                                                                            \
         void* heap = malloc(sizeof((item)));                                         \
         panic_if(heap == nullptr, "Error: failed to append item to slice");          \
-        *(type*)heap = (item);                                               \
+        *(type*)heap = (item);                                                       \
         (slice)->buffer[(slice)->len] = heap;                                        \
         (slice)->len += 1;                                                           \
     } while (false)
-
-#define KIR_slice_append(slice, item)                                                \
-    _Generic((item),                                                                 \
-        void*:   KIR_slice_append_ptr,                                               \
-        default: KIR_slice_append_val                                                \
-    )(slice, item)
-
-static koopa_raw_program_t KIR_to_raw_prog(KirUnit* unit) {
-    koopa_raw_program_t raw_prog = {
-        .values = KIR_new_slice(KOOPA_RSIK_VALUE),
-        .funcs = KIR_new_slice(KOOPA_RSIK_FUNCTION),
-    };
-    return raw_prog;
-}
 
 #define KIR_slice_foreach(slice, type, item)                                         \
     for (                                                                            \
@@ -312,6 +140,19 @@ static struct koopa_raw_value_data KIR_new_raw_ret_data(
     };
 }
 
+static struct koopa_raw_value_data 
+KIR_new_raw_ret_data_from_node(
+    Node*             node, 
+    koopa_raw_slice_t used_by
+) {
+    return KIR_new_raw_ret_data(
+        ARENA_alloc(
+            &KIR_ARENA, 
+            KIR_new_raw_int_data(node->as.ret.val, used_by)
+        ), used_by
+    );
+}
+
 static koopa_raw_basic_block_data_t KIR_new_raw_block_data(
     koopa_raw_slice_t params, koopa_raw_slice_t used_by
 ) {
@@ -323,7 +164,28 @@ static koopa_raw_basic_block_data_t KIR_new_raw_block_data(
     };
 }
 
-static struct koopa_raw_type_kind KIR_new_raw_func_kind(
+static koopa_raw_basic_block_data_t KIR_new_raw_block_data_from_node(
+    Node*             node, 
+    koopa_raw_slice_t params, 
+    koopa_raw_slice_t used_by
+) {
+    koopa_raw_basic_block_data_t block = KIR_new_raw_block_data(params, used_by);
+    DA_foreach(&node->as.block, sub_node) {
+        switch (sub_node->kind) {
+            case AST_RET: {
+                koopa_raw_value_data_t* ret = ARENA_alloc(
+                    &KIR_ARENA, 
+                    KIR_new_raw_ret_data_from_node(sub_node, used_by)
+                );
+                KIR_slice_append_ptr(&block.insts, ret);
+            } break;
+            default: unreachable();
+        }
+    }
+    return block;
+}
+
+static koopa_raw_type_kind_t KIR_new_raw_func_kind(
     koopa_raw_slice_t      params_kind, 
     koopa_raw_type_kind_t* ret_kind
 ) {
@@ -334,6 +196,17 @@ static struct koopa_raw_type_kind KIR_new_raw_func_kind(
             .ret    = ret_kind,
         }
     };
+}
+
+static koopa_raw_type_kind_t KIR_new_raw_func_kind_from_node(Node* node) {
+    switch (node->as.func_def.type) {
+        case DATA_INT: {
+            return KIR_new_raw_func_kind(
+                KIR_new_slice(KOOPA_RSIK_TYPE), &INT32_TYPE
+            );
+        }
+        default: unreachable();
+    }
 }
 
 static koopa_raw_function_data_t KIR_new_raw_func_data(
@@ -350,6 +223,43 @@ static koopa_raw_function_data_t KIR_new_raw_func_data(
         .params = params, 
         .bbs = KIR_new_slice(KOOPA_RSIK_BASIC_BLOCK),
     };
+}
+
+static char* KIR_new_symbol_name(char prefix, char* name, size_t length) {
+    char* symbol_name = Arena_alloc(&KIR_ARENA, strlen(name) + 2, alignof(char));
+    symbol_name[0] = prefix;
+    memcpy(symbol_name + 1, name, length);
+    symbol_name[length + 1] = '\0';
+    return symbol_name;
+}
+
+static koopa_raw_program_t KIR_to_raw_prog(AstProg* prog) {
+    koopa_raw_program_t raw_prog = KIR_new_raw_prog();
+    DA_foreach(prog, node) {
+        switch (node->kind) {
+            case AST_FUNC_DEF: {
+                koopa_raw_slice_t params = KIR_new_slice(KOOPA_RSIK_VALUE);
+                koopa_raw_slice_t used_by = KIR_new_slice(KOOPA_RSIK_VALUE);
+                koopa_raw_type_kind_t* type = ARENA_alloc(&KIR_ARENA, KIR_new_raw_func_kind_from_node(node));
+                koopa_raw_function_data_t* func_data =ARENA_alloc(&KIR_ARENA, KIR_new_raw_func_data(
+                    type, 
+                    KIR_new_symbol_name('@', node->as.func_def.name.items, node->as.func_def.name.length), 
+                    params
+                ));
+                koopa_raw_basic_block_data_t* block = ARENA_alloc(
+                    &KIR_ARENA, 
+                    KIR_new_raw_block_data_from_node(node->as.func_def.body, params, used_by)
+                );
+                KIR_slice_append_ptr(&func_data->bbs, block);
+                KIR_slice_append_ptr(&raw_prog.funcs, func_data);
+            } break;
+            case AST_RET:
+            case AST_BLOCK: {
+                panic("Unimplemented yet");
+            } break;
+        }
+    }
+    return raw_prog;
 }
 
 #endif // KIR_H_
