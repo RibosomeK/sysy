@@ -104,7 +104,10 @@ static Node AST_parse(Parser* parser);
 static Node parse_ret(Parser* parser) {
     Token curr = PARSER_next(parser);
     if (curr.type != TOK_INT)
-        panic("Error: Missing expression");
+        panic(
+            "Error: Missing expression at line %zu, column %zu",
+            curr.loc.row, curr.loc.col
+        );
     int val = curr.as.integer;
     curr = PARSER_next(parser);
     if (
@@ -113,7 +116,10 @@ static Node parse_ret(Parser* parser) {
     )
         PARSER_consume(parser);
     else
-        panic("Error: Missing semicolon");
+        panic(
+            "Error: Missing semicolon at line %zu, column %zu", 
+            curr.loc.row, curr.loc.col
+        );
     return (Node) {
         .kind = AST_RET,
         .as.ret = {
@@ -123,11 +129,15 @@ static Node parse_ret(Parser* parser) {
 }
 
 static Node parse_block(Parser* parser) {
+    Loc loc = PARSER_curr(parser).loc;
     Node block = { .kind = AST_BLOCK, .as.block = {0} };
     Token next = PARSER_next(parser);
     while (!(next.type == TOK_PUNC && SV_eq(&next.as.str_view, "}"))) {
         if (next.type == TOK_EOF)
-            panic("Error: unbalanced brackets");
+            panic(
+                "Error: unbalanced brackets starts at line %zu, column %zu",
+                loc.row, loc.col
+            );
         Node sub_node = AST_parse(parser);
         DA_append(&block.as.block, sub_node);
         next = PARSER_curr(parser);
@@ -139,21 +149,40 @@ static Node parse_block(Parser* parser) {
 static Node parse_def(Parser* parser) {
     Token next = PARSER_next(parser);
     if (next.type != TOK_IDENT)
-        panic("Error: Missing identifier");
+        panic(
+            "Error: Missing identifier at line %zu, column %zu",
+            next.loc.row, next.loc.col
+        );
     if (SV_not_eq(&next.as.str_view, "main"))
-        panic("Error: function name should be main");
+        panic(
+            "Error: function name '%.*s' at line %zu, column %zu should be main",
+            (int)next.as.str_view.length, next.as.str_view.items, next.loc.row, next.loc.col
+        );
     StrView name = next.as.str_view;
     next = PARSER_next(parser);
+    Loc left_loc = next.loc;
     if (next.type != TOK_PUNC || SV_not_eq(&next.as.str_view, "("))
-        panic("Error: '(' is expected");
+        panic(
+            "Error: '(' is expected at line %zu, column %zu",
+            next.loc.row, next.loc.col
+        );
     next = PARSER_next(parser);
     if (next.type != TOK_PUNC || SV_not_eq(&next.as.str_view, ")"))
-        panic("Error: unbalanced parenthesis");
+        panic(
+            "Error: unbalanced parenthesis starts at line %zu, column %zu",
+            left_loc.row, left_loc.col
+        );
     next = PARSER_next(parser);
     if (next.type != TOK_PUNC)
-        panic("Error: '(' is expected");
+        panic(
+            "Error: '(' is expected at line %zu, column %zu",
+            next.loc.row, next.loc.col
+        );
     if (SV_eq(&next.as.str_view, ";"))
-        panic("function declare is not yet implemented");
+        panic(
+            "function declaration at line %zu, column %zu is not yet implemented",
+            next.loc.row, next.loc.col
+        );
     if (SV_eq(&next.as.str_view, "{")) {
         Node* block = malloc(sizeof(Node));
         panic_if(block == nullptr, "malloc failed");
@@ -167,7 +196,10 @@ static Node parse_def(Parser* parser) {
             }
         };
     }
-    panic("Error: '{' is expected");
+    panic(
+        "Error: '{' is expected at line %zu, column %zu",
+        next.loc.row, next.loc.col
+    );
 }
 
 static Node AST_parse(Parser* parser) {
