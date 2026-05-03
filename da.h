@@ -9,8 +9,12 @@
 #define INIT_CAPACITY 16
 #define DA [[maybe_unused]] static
 
-[[noreturn]] DA void panic(char* msg) {
-    fprintf(stderr, "%s\n", msg);
+[[noreturn]] DA void panic(char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    va_end(args);
+    fputc('\n', stderr);
     exit(-1);
 }
 
@@ -18,8 +22,15 @@
     panic("Error: unreachable");
 }
 
-DA void panic_if(bool cond, char* msg) {
-    if (cond) panic(msg);
+DA void panic_if(bool cond, char* fmt, ...) {
+    if (cond) {
+        va_list args;
+        va_start(args, fmt);
+        vfprintf(stderr, fmt, args);
+        va_end(args);
+        fputc('\n', stderr);
+        exit(-1);
+    }
 }
 
 #define DA_def(type, name)                                                           \
