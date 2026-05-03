@@ -7,16 +7,16 @@
 #include "include/koopa.h"
 
 int main() {
-    char* program = "int main() { return 0; }";
+    char* program = "int main() {\n    return 0;\n}";
     Tokens tokens = {0};
-    Lexer lexer = {.src = program, .pos = 0, .len = strlen(program)};
+    Lexer lexer = LEX_new(program);
     LEX_parse(&lexer, &tokens);
     Str buf = {0};
     printf("=================TOKEN==================\n");
     DA_foreach(&tokens, token) {
         size_t idx = token - tokens.items;
         TOKEN_to_str(token, &buf);
-        printf("%zu:%s\n", idx, buf.items);
+        printf("%zu:%zu:%zu:%s\n", idx, token->loc.row, token->loc.col, buf.items);
         STR_clear(&buf);
     }
     printf("=================AST====================\n");

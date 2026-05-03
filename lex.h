@@ -10,11 +10,17 @@ typedef enum {
 } TokType;
 
 typedef struct {
+    size_t row;
+    size_t col;
+} Loc;
+
+typedef struct {
     TokType type;
     union {
         int     integer;
         StrView str_view;
     } as;
+    Loc loc;
 } Token;
 
 typedef struct {
@@ -43,6 +49,15 @@ typedef struct {
     size_t len;
     Loc    loc;
 } Lexer;
+
+static Lexer LEX_new(char* src) { 
+    return (Lexer) {
+        .src = src,
+        .pos = 0,
+        .len = strlen(src),
+        .loc = { .row = 1, .col = 1 }
+    };
+}
 
 bool is_identifier_inital(char c) {
     int ord = (int)c;
@@ -92,6 +107,7 @@ StrView parse_ident(Lexer* lexer) {
         }
     }
     sv.length = length;
+    lexer->loc.col += length;
     return sv;
 }
 
@@ -121,29 +137,40 @@ Number parse_num(Lexer* lexer) {
             break;
         }
     }
+    lexer->loc.col += buf.length;
     DA_append(&buf, '\0');
     Number num = { .type=NUM_INT, .as.integer = atoi(buf.items) };
     free(buf.items);
     return num;
+}
+
+static Loc LEX_curr_loc(Lexer* lexer) {
+    return (Loc) { .row = lexer->loc.row, .col = lexer->loc.col };
 }
  
 void LEX_parse(Lexer* lexer, Tokens* tokens) {
     while (lexer->pos < lexer->len) {
         char curr = lexer->src[lexer->pos];
         if (is_identifier_inital(curr)) {
+            Loc loc = LEX_curr_loc(lexer);
             StrView ident = parse_ident(lexer);
-            DA_append(tokens, ((Token) { .type = TOK_IDENT, .as.str_view = ident }));
-            continue;
-        }
-        if (is_whitespace(curr)) {
-            lexer->pos += 1;
+            DA_append(tokens, ((Token) { 
+                .type = TOK_IDENT, 
+                .as.str_view = ident,
+                .loc = loc
+            }));
             continue;
         }
         if (is_digit(curr)) {
+            Loc loc = LEX_curr_loc(lexer);
             Number num = parse_num(lexer);
             switch (num.type) {
             case NUM_INT:
-                DA_append(tokens, ((Token) { .type = TOK_INT, .as.integer = num.as.integer }));
+                DA_append(tokens, ((Token) { 
+                    .type = TOK_INT, 
+                    .as.integer = num.as.integer,
+                    .loc = loc
+                }));
                 break;
             case NUM_FLOAT:
                 panic("TODO: Implement floating parsing");
@@ -151,20 +178,51 @@ void LEX_parse(Lexer* lexer, Tokens* tokens) {
             }
             continue;
         }
-        // as punctuation
-        DA_append(
-            tokens, 
-            ((Token){
-                .type=TOK_PUNC, 
-                .as.str_view = (StrView) {
-                    .items   = &lexer->src[lexer->pos], 
-                    .length  = 1
+        switch (curr) {
+            case ' ' :
+            case '\t': 
+            case '\v': {
+                lexer->pos += 1;
+                lexer->loc.col += 1;
+            } break;
+            case '\n': {
+                lexer->pos += 1;
+                lexer->loc.col = 1;
+                lexer->loc.row += 1;
+            } break;
+            case '\r': {
+                if (lexer->src[lexer->pos + 1] == '\n') {
+                    lexer->pos += 2;
+                } else {
+                    lexer->pos += 1;
                 }
-            })
-        );
-        lexer->pos += 1;
+                lexer->loc.col = 1;
+                lexer->loc.row += 1;
+            } break;
+            // as punctuation
+            default: {
+                Token token = {
+                    .type=TOK_PUNC, 
+                    .as.str_view = (StrView) {
+                        .items   = &lexer->src[lexer->pos], 
+                        .length  = 1
+                    },
+                    .loc = LEX_curr_loc(lexer)
+                };
+                DA_append(tokens, token);
+                lexer->pos += 1;
+                lexer->loc.col += 1;
+            } break;
+        }
     }
-    DA_append(tokens, ((Token) { .type=TOK_EOF, .as.str_view = SV_from("\0") }));
+    DA_append(
+        tokens, 
+        ((Token) { 
+            .type=TOK_EOF, 
+            .as.str_view = SV_from("\0"), 
+            .loc = LEX_curr_loc(lexer) 
+        })
+    );
 }
 
 #endif // LEXER_H_
