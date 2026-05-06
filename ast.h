@@ -45,6 +45,8 @@ typedef struct {
     size_t capacity;
 } AstProg;
 
+static Arena AST_ARENA = {0};
+
 static void NODE_to_str(Node* node, Str* buf) {
     switch (node->kind) {
         case AST_RET:
@@ -184,10 +186,7 @@ static Node parse_def(Parser* parser) {
             next.loc.row, next.loc.col
         );
     if (SV_eq(&next.as.str_view, "{")) {
-        Node* block = malloc(sizeof(Node));
-        panic_if(block == nullptr, "malloc failed");
-        Node tmp = parse_block(parser);
-        *block = tmp;
+        Node* block = ARENA_alloc(&AST_ARENA, parse_block(parser));
         return (Node) {.kind = AST_FUNC_DEF,
             .as.func_def = {
                 .type = DATA_INT,
