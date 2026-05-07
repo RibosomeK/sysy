@@ -1,5 +1,7 @@
 /build/*
 !/build/.gitkeep
+/out/*
+!/out/.gitkeep
 /.idea
 /.vscode
 /lib/*

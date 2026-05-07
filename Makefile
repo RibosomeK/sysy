@@ -4,7 +4,7 @@ build: da.h lex.h ast.h kir.h sysy.c
 	gcc -std=c23 -g -O0 -Wall -Wextra sysy.c -o ./build/sysy -L./lib -lkoopa -lm
 
 run: build
-	./build/sysy
+	./build/sysy -koopa ./example/main.sysy -o ./out/main.koopa
 
 GREEN = \033[32m
 RESET = \033[0m
