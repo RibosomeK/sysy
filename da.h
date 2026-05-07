@@ -271,4 +271,6 @@ DA void Arena_free(Arena* arena) {
     free(arena->start);
 }
 
+#define shift_args(argc, argv) ((argc)--, *(argv)++)
+
 #endif // DA_H_
