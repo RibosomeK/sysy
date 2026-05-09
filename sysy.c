@@ -31,17 +31,10 @@ int main(int argc, char** argv) {
     panic_if(input == nullptr, "Error: Missing input file\n%s", USAGE);
     panic_if(output == nullptr, "Error: Missing output file\n%s", USAGE);
 
-    FILE* file = fopen(input, "rb");
-    panic_if(file == nullptr, "Error: failed to open file");
-    panic_if(fseek(file, 0, SEEK_END) != 0, "Error: failed to get file size");
-    size_t size = ftell(file);
-    fseek(file, 0, SEEK_SET);
+    printf("Running %s\n", name);
     Str src = {0};
-    DA_resize(&src, size + 1);
-    fread(src.items, size, 1, file);
-    src.length = size;
-    DA_append(&src, '\0');
-    printf("%s\n", src.items);
+    size_t byte = read_file(input, &src);
+    printf("read %zu byte\n%s\n", byte, src.items);
 
     char* program = src.items;
     Tokens tokens = {0};

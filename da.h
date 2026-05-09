@@ -273,4 +273,17 @@ DA void Arena_free(Arena* arena) {
 
 #define shift_args(argc, argv) ((argc)--, *(argv)++)
 
+DA size_t read_file(char* filename, Str* buf) {
+    FILE* file = fopen(filename, "rb");
+    panic_if(file == nullptr, "Error: failed to open file");
+    panic_if(fseek(file, 0, SEEK_END) != 0, "Error: failed to get file size");
+    size_t size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+    DA_resize(buf, buf->length + size + 1);
+    fread(buf->items + buf->length, size, 1, file);
+    buf->length = size;
+    DA_append(buf, '\0');
+    return size;
+}
+
 #endif // DA_H_
